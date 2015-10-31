@@ -204,6 +204,13 @@ class SolrTestCase(unittest.TestCase):
         self.assertRaises(SolrError, self.solr._send_request, 'get', 'select/?q=doc&wt=json')
         self.solr.url = old_url
 
+        # Test bad core as well
+        self.solr.url = 'http://localhost:8983/solr/bad_core'
+        try:
+            self.assertRaises(SolrError, self.solr._send_request, 'get', 'select/?q=doc&wt=json')
+        finally:
+            self.solr.url = old_url
+
     def test__select(self):
         # Short params.
         resp_body = self.solr._select({'q': 'doc'})
@@ -215,6 +222,13 @@ class SolrTestCase(unittest.TestCase):
         resp_data = json.loads(resp_body)
         self.assertEqual(resp_data['response']['numFound'], 0)
         self.assertEqual(len(resp_data['responseHeader']['params']['q']), 3 * 1024)
+
+        # Test Deep Pagination CursorMark
+        resp_body = self.solr._select({'q': '*', 'cursorMark':'*', 'sort':'id desc', 'start':0, 'rows': 2})
+        resp_data = json.loads(resp_body)
+        self.assertEqual(len(resp_data['response']['docs']), 2)
+        self.assertIn('nextCursorMark', resp_data)
+
 
     def test__mlt(self):
         resp_body = self.solr._mlt({'q': 'id:doc_1', 'mlt.fl': 'title'})
